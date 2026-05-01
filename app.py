@@ -192,38 +192,60 @@ roi_color    = "#27AE60" if overall_roi >= 0 else "#E74C3C"
 now = datetime.now().strftime("%d %b %Y  %H:%M")
 
 # ============================================================
-#  HEADER
+#  HEADER WITH LOGO
 # ============================================================
-st.markdown(f"""
-<div style="
-  background: linear-gradient(135deg, #0F2B46 0%, #1B4F72 60%, #2471A3 100%);
-  border-radius: 14px;
-  padding: 22px 28px;
-  margin-bottom: 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-">
-  <div>
-    <div style="color:white;font-size:22px;font-weight:700;">
-      📊 P&L Executive Dashboard
-    </div>
-    <div style="color:rgba(255,255,255,0.55);font-size:11px;margin-top:4px;">
-      IT Asset Trading &nbsp;·&nbsp;
-      Procurement → Shipment → Clearing → Sales
-      &nbsp;·&nbsp; {now}
-    </div>
-  </div>
-  <div style="
-    background:rgba(255,255,255,0.12);
-    border:1px solid rgba(255,255,255,0.25);
-    border-radius:20px;padding:5px 14px;
-    color:white;font-size:11px;font-weight:600;">
-    🟢 LIVE DATA
-  </div>
-</div>
-""", unsafe_allow_html=True)
 
+# Load logo from GitHub
+import requests
+from PIL import Image
+from io import BytesIO
+
+# Load logo
+logo_url = "https://raw.githubusercontent.com/KATLLC/it-asset-dashboard/main/logo.png"
+
+try:
+    response = requests.get(logo_url)
+    logo_img = Image.open(BytesIO(response.content))
+    has_logo = True
+except:
+    has_logo = False
+
+# Header layout
+header_left, header_right = st.columns([1, 6])
+
+with header_left:
+    if has_logo:
+        st.image(logo_img, width=100)
+
+with header_right:
+    st.markdown(f"""
+    <div style="
+      background: linear-gradient(135deg, #0F2B46 0%, #1B4F72 60%, #2471A3 100%);
+      border-radius: 14px;
+      padding: 22px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    ">
+      <div>
+        <div style="color:white;font-size:22px;font-weight:700;">
+          📊 P&L Executive Dashboard
+        </div>
+        <div style="color:rgba(255,255,255,0.55);font-size:11px;margin-top:4px;">
+          IT Asset Trading &nbsp;·&nbsp;
+          Procurement → Shipment → Clearing → Sales
+          &nbsp;·&nbsp; {now}
+        </div>
+      </div>
+      <div style="
+        background:rgba(255,255,255,0.12);
+        border:1px solid rgba(255,255,255,0.25);
+        border-radius:20px;padding:5px 14px;
+        color:white;font-size:11px;font-weight:600;">
+        🟢 LIVE DATA
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 # ============================================================
 #  SECTION 1: BUSINESS OVERVIEW KPI CARDS
 # ============================================================
