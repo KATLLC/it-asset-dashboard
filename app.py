@@ -1,10 +1,12 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
+import requests
+from PIL import Image
+from io import BytesIO
 
 # ============================================================
 #  PAGE CONFIG
@@ -21,15 +23,10 @@ st.set_page_config(
 # ============================================================
 st.markdown("""
 <style>
-  /* Main background */
   .main { background-color: #F4F7FB; }
-  
-  /* Hide Streamlit branding */
   #MainMenu {visibility: hidden;}
   footer {visibility: hidden;}
   header {visibility: hidden;}
-
-  /* KPI cards */
   [data-testid="metric-container"] {
     background-color: white;
     border-radius: 10px;
@@ -37,41 +34,18 @@ st.markdown("""
     border-top: 4px solid #1B3A6B;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
   }
-
-  /* Metric label */
   [data-testid="metric-container"] label {
     color: #95A5A6 !important;
     font-size: 11px !important;
     text-transform: uppercase;
     letter-spacing: 1px;
   }
-
-  /* Metric value */
   [data-testid="metric-container"] [data-testid="metric-value"] {
     color: #1B3A6B !important;
     font-size: 22px !important;
     font-weight: 700 !important;
   }
-
-  /* Section headers */
-  h2 {
-    color: #1B3A6B !important;
-    font-size: 16px !important;
-    font-weight: 700 !important;
-    border-left: 4px solid #3498DB;
-    padding-left: 10px;
-  }
-
-  /* Divider */
-  hr {
-    border-color: #E8ECF1;
-  }
-
-  /* Dataframe */
-  .dataframe {
-    font-family: Arial, sans-serif !important;
-    font-size: 12px !important;
-  }
+  hr { border-color: #E8ECF1; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -135,100 +109,104 @@ def fmtp(n):
     except:
         return "0.0%"
 
-# LANDED COST columns by position
-landed_cost    = to_n(df_landed.iloc[:, 26]).sum()
-total_revenue  = to_n(df_landed.iloc[:, 28]).sum()
-gross_profit   = to_n(df_landed.iloc[:, 29]).sum()
-cost_purchase  = to_n(df_landed.iloc[:, 9]).sum()
-cost_duty      = to_n(df_landed.iloc[:, 18]).sum()
-cost_agent     = to_n(df_landed.iloc[:, 20]).sum()
-cost_local     = to_n(df_landed.iloc[:, 22]).sum()
-cost_other     = to_n(df_landed.iloc[:, 24]).sum()
-cost_freight   = to_n(df_landed.iloc[:, 16]).sum()
-cost_usa       = (to_n(df_landed.iloc[:, 10]).sum() +
-                  to_n(df_landed.iloc[:, 11]).sum())
+# KPIs from LANDED COST ANALYSIS
+landed_cost   = to_n(df_landed.iloc[:, 26]).sum()
+total_revenue = to_n(df_landed.iloc[:, 28]).sum()
+gross_profit  = to_n(df_landed.iloc[:, 29]).sum()
+cost_purchase = to_n(df_landed.iloc[:, 9]).sum()
+cost_duty     = to_n(df_landed.iloc[:, 18]).sum()
+cost_agent    = to_n(df_landed.iloc[:, 20]).sum()
+cost_local    = to_n(df_landed.iloc[:, 22]).sum()
+cost_other    = to_n(df_landed.iloc[:, 24]).sum()
+cost_freight  = to_n(df_landed.iloc[:, 16]).sum()
+cost_usa      = (to_n(df_landed.iloc[:, 10]).sum() +
+                 to_n(df_landed.iloc[:, 11]).sum())
 
-total_lots     = len(df_landed[df_landed.iloc[:, 0].astype(str).str.strip() != ""])
-total_units    = to_n(df_landed.iloc[:, 4]).sum()
-avg_per_unit   = landed_cost / total_units if total_units > 0 else 0
+total_lots    = len(df_landed[
+    df_landed.iloc[:, 0].astype(str).str.strip() != ""
+])
+total_units   = to_n(df_landed.iloc[:, 4]).sum()
+avg_per_unit  = landed_cost / total_units if total_units > 0 else 0
 
 overall_margin = (gross_profit / total_revenue * 100
                   if total_revenue > 0 else 0)
 overall_roi    = (gross_profit / landed_cost * 100
                   if landed_cost > 0 else 0)
 
-# PROCUREMENT
+# KPIs from PROCUREMENT
 total_procured = to_n(df_proc.iloc[:, 6]).sum()
 cash_spent     = to_n(df_proc.iloc[:, 16]).sum()
 
-# SALES
+# KPIs from SALES
 df_sales_clean = df_sales[to_n(df_sales.iloc[:, 10]) > 0]
-total_sold     = to_n(df_sales_clean.iloc[:, 7]).sum() if len(df_sales_clean) > 0 else 0
+total_sold     = (to_n(df_sales_clean.iloc[:, 7]).sum()
+                  if len(df_sales_clean) > 0 else 0)
 
-remaining      = total_procured - total_sold
-pct_sold       = (total_sold / total_procured * 100
-                  if total_procured > 0 else 0)
-pct_remaining  = 100 - pct_sold
+remaining     = total_procured - total_sold
+pct_sold      = (total_sold / total_procured * 100
+                 if total_procured > 0 else 0)
+pct_remaining = 100 - pct_sold
 
-# BUDGET
-BUDGET         = 5110.00
-cash_available = BUDGET - cash_spent
-pct_used       = (cash_spent / BUDGET * 100 if BUDGET > 0 else 0)
-pct_free       = 100 - pct_used
+# Budget
+BUDGET        = 5110.00
+cash_avail    = BUDGET - cash_spent
+pct_used      = (cash_spent / BUDGET * 100 if BUDGET > 0 else 0)
+pct_free      = 100 - pct_used
 
 if pct_free >= 50:
-    budget_status = "HEALTHY"
-    budget_color  = "#27AE60"
+    b_status = "HEALTHY"
+    b_color  = "#27AE60"
 elif pct_free >= 25:
-    budget_status = "MODERATE"
-    budget_color  = "#F39C12"
+    b_status = "MODERATE"
+    b_color  = "#F39C12"
 else:
-    budget_status = "LOW"
-    budget_color  = "#E74C3C"
+    b_status = "LOW"
+    b_color  = "#E74C3C"
 
+avail_color  = "#27AE60" if cash_avail > 0 else "#E74C3C"
 profit_color = "#27AE60" if gross_profit >= 0 else "#E74C3C"
 roi_color    = "#27AE60" if overall_roi >= 0 else "#E74C3C"
+now          = datetime.now().strftime("%d %b %Y  %H:%M")
 
-now = datetime.now().strftime("%d %b %Y  %H:%M")
+# Chart colors
+C_NAVY   = "#1B3A6B"
+C_BLUE   = "#2471A3"
+C_GREEN  = "#27AE60"
+C_ORANGE = "#E67E22"
+C_RED    = "#E74C3C"
+C_PURPLE = "#9B59B6"
+C_GREY   = "#95A5A6"
 
 # ============================================================
 #  HEADER WITH LOGO
 # ============================================================
+logo_col, title_col = st.columns([1, 7])
 
-# Load logo from GitHub
-import requests
-from PIL import Image
-from io import BytesIO
+with logo_col:
+    try:
+        logo_url = (
+            "https://raw.githubusercontent.com/"
+            "KATLLC/it-asset-dashboard/main/logo.png"
+        )
+        response = requests.get(logo_url, timeout=5)
+        if response.status_code == 200:
+            logo_img = Image.open(BytesIO(response.content))
+            st.image(logo_img, width=110)
+    except:
+        st.write("")
 
-# Load logo
-logo_url = "https://raw.githubusercontent.com/KATLLC/it-asset-dashboard/main/logo.png"
-
-try:
-    response = requests.get(logo_url)
-    logo_img = Image.open(BytesIO(response.content))
-    has_logo = True
-except:
-    has_logo = False
-
-# Header layout
-header_left, header_right = st.columns([1, 6])
-
-with header_left:
-    if has_logo:
-        st.image(logo_img, width=100)
-
-with header_right:
+with title_col:
     st.markdown(f"""
     <div style="
-      background: linear-gradient(135deg, #0F2B46 0%, #1B4F72 60%, #2471A3 100%);
-      border-radius: 14px;
-      padding: 22px 28px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      background:linear-gradient(135deg,#0F2B46 0%,#1B4F72 60%,#2471A3 100%);
+      border-radius:14px;
+      padding:18px 24px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
     ">
       <div>
-        <div style="color:white;font-size:22px;font-weight:700;">
+        <div style="color:white;font-size:20px;font-weight:700;">
           📊 P&L Executive Dashboard
         </div>
         <div style="color:rgba(255,255,255,0.55);font-size:11px;margin-top:4px;">
@@ -246,106 +224,158 @@ with header_right:
       </div>
     </div>
     """, unsafe_allow_html=True)
+
 # ============================================================
-#  SECTION 1: BUSINESS OVERVIEW KPI CARDS
+#  SECTION 1: BUSINESS OVERVIEW
 # ============================================================
+st.markdown("---")
 st.markdown("#### 💼 Business Overview")
 
 c1, c2, c3, c4, c5, c6 = st.columns(6)
-
-c1.metric("💰 Revenue",       fmt(total_revenue))
-c2.metric("📈 Gross Profit",  fmt(gross_profit))
-c3.metric("🎯 Margin",        fmtp(overall_margin))
-c4.metric("🔄 ROI",           fmtp(overall_roi))
-c5.metric("📦 Total Lots",    str(total_lots))
-c6.metric("🔢 Avg/Unit",      fmt(avg_per_unit))
-
-st.divider()
+c1.metric("💰 Revenue",      fmt(total_revenue))
+c2.metric("📈 Gross Profit", fmt(gross_profit))
+c3.metric("🎯 Margin",       fmtp(overall_margin))
+c4.metric("🔄 ROI",          fmtp(overall_roi))
+c5.metric("📦 Total Lots",   str(total_lots))
+c6.metric("🔢 Avg/Unit",     fmt(avg_per_unit))
 
 # ============================================================
 #  SECTION 2: BUYING POWER
 # ============================================================
-st.markdown(f"#### 💵 Auction Buying Power &nbsp; "
-            f"<span style='background:{budget_color}22;"
-            f"color:{budget_color};"
-            f"border:1px solid {budget_color}44;"
-            f"border-radius:20px;padding:2px 10px;"
-            f"font-size:11px;font-weight:700;'>"
-            f"{budget_status}</span>",
-            unsafe_allow_html=True)
+st.markdown("---")
+st.markdown(
+    f"#### 💵 Auction Buying Power &nbsp;"
+    f"<span style='background:{b_color}22;"
+    f"color:{b_color};"
+    f"border:1px solid {b_color}44;"
+    f"border-radius:20px;"
+    f"padding:2px 10px;"
+    f"font-size:11px;"
+    f"font-weight:700;'>"
+    f"{b_status}</span>",
+    unsafe_allow_html=True
+)
 
 b1, b2, b3 = st.columns(3)
-b1.metric("💼 Total Budget",        fmt(BUDGET))
-b2.metric("🛒 Spent on Auctions",   fmt(cash_spent),   f"{fmtp(pct_used)} used")
-b3.metric("✅ Available for Bidding",fmt(cash_available),f"{fmtp(pct_free)} remaining")
+b1.metric("💼 Total Budget",         fmt(BUDGET))
+b2.metric("🛒 Spent on Auctions",    fmt(cash_spent),
+          f"{fmtp(pct_used)} used")
+b3.metric("✅ Available for Bidding", fmt(cash_avail),
+          f"{fmtp(pct_free)} remaining")
 
-# Progress bar
+# Fixed progress bar - both colors always show
+pct_used_display = max(pct_used, 1)
+pct_free_display = max(pct_free, 1)
+
 st.markdown(f"""
-<div style="margin:10px 0;">
-  <div style="display:flex;justify-content:space-between;
-              margin-bottom:4px;font-size:11px;color:#7F8C8D;">
+<div style="margin:12px 0 4px 0;">
+  <div style="display:flex;
+              justify-content:space-between;
+              margin-bottom:6px;
+              font-size:11px;
+              color:#7F8C8D;">
     <span>Budget Utilization</span>
     <span style="font-weight:700;color:#1B3A6B;">
-      {fmtp(pct_used)} deployed
+      {fmtp(pct_used)} deployed &nbsp;|&nbsp;
+      {fmtp(pct_free)} available
     </span>
   </div>
-  <div style="background:#EEF2F9;border-radius:6px;
-              height:10px;overflow:hidden;">
-    <div style="width:{min(pct_used,100):.1f}%;
-                height:100%;
+  <div style="display:flex;
+              height:14px;
+              border-radius:8px;
+              overflow:hidden;
+              background:#EEF2F9;">
+    <div style="width:{pct_used_display:.1f}%;
                 background:linear-gradient(90deg,#E67E22,#D35400);
-                border-radius:6px;">
+                border-radius:8px 0 0 8px;">
+    </div>
+    <div style="width:{pct_free_display:.1f}%;
+                background:linear-gradient(90deg,#27AE60,#1E8449);
+                border-radius:0 8px 8px 0;">
+    </div>
+  </div>
+  <div style="display:flex;gap:16px;margin-top:6px;">
+    <div style="display:flex;align-items:center;gap:5px;
+                font-size:10px;color:#7F8C8D;">
+      <div style="width:8px;height:8px;border-radius:50%;
+                  background:#E67E22;"></div>
+      Spent: {fmt(cash_spent)}
+    </div>
+    <div style="display:flex;align-items:center;gap:5px;
+                font-size:10px;color:#7F8C8D;">
+      <div style="width:8px;height:8px;border-radius:50%;
+                  background:#27AE60;"></div>
+      Available: {fmt(cash_avail)}
     </div>
   </div>
 </div>
 """, unsafe_allow_html=True)
-
-st.divider()
 
 # ============================================================
 #  SECTION 3: INVENTORY PIPELINE
 # ============================================================
+st.markdown("---")
 st.markdown("#### 📦 Inventory Pipeline")
 
 i1, i2, i3 = st.columns(3)
-i1.metric("📥 Procured",  f"{int(total_procured):,}", "Total units bought")
-i2.metric("📤 Sold",      f"{int(total_sold):,}",     f"{fmtp(pct_sold)} of stock")
-i3.metric("🏭 Remaining", f"{int(remaining):,}",      "Unsold inventory")
+i1.metric("📥 Procured",  f"{int(total_procured):,}")
+i2.metric("📤 Sold",      f"{int(total_sold):,}",
+          f"{fmtp(pct_sold)} of stock")
+i3.metric("🏭 Remaining", f"{int(remaining):,}")
 
-# Inventory bar
+# Fixed inventory bar
+pct_sold_display      = max(pct_sold, 1)
+pct_remaining_display = max(pct_remaining, 1)
+
 st.markdown(f"""
 <div style="margin:10px 0;">
-  <div style="display:flex;height:24px;border-radius:8px;overflow:hidden;">
-    <div style="width:{max(pct_sold,1):.1f}%;
+  <div style="display:flex;
+              height:24px;
+              border-radius:8px;
+              overflow:hidden;">
+    <div style="width:{pct_sold_display:.1f}%;
                 background:linear-gradient(90deg,#27AE60,#1E8449);
-                display:flex;align-items:center;justify-content:center;
-                color:white;font-size:11px;font-weight:600;">
-      {"Sold" if pct_sold > 8 else ""}
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                color:white;
+                font-size:11px;
+                font-weight:600;">
+      {"Sold " + fmtp(pct_sold) if pct_sold > 8 else ""}
     </div>
-    <div style="width:{max(pct_remaining,1):.1f}%;
+    <div style="width:{pct_remaining_display:.1f}%;
                 background:linear-gradient(90deg,#E67E22,#D35400);
-                display:flex;align-items:center;justify-content:center;
-                color:white;font-size:11px;font-weight:600;">
-      {"Remaining" if pct_remaining > 8 else ""}
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                color:white;
+                font-size:11px;
+                font-weight:600;">
+      {"Remaining " + fmtp(pct_remaining) if pct_remaining > 8 else ""}
+    </div>
+  </div>
+  <div style="display:flex;gap:16px;margin-top:6px;">
+    <div style="display:flex;align-items:center;gap:5px;
+                font-size:10px;color:#7F8C8D;">
+      <div style="width:8px;height:8px;border-radius:50%;
+                  background:#27AE60;"></div>
+      Sold: {int(total_sold):,} units
+    </div>
+    <div style="display:flex;align-items:center;gap:5px;
+                font-size:10px;color:#7F8C8D;">
+      <div style="width:8px;height:8px;border-radius:50%;
+                  background:#E67E22;"></div>
+      Remaining: {int(remaining):,} units
+      ({fmt(remaining * avg_per_unit)} at cost)
     </div>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
-st.divider()
-
 # ============================================================
 #  SECTION 4: CHARTS
 # ============================================================
-
-# Chart colors
-C_NAVY   = "#1B3A6B"
-C_BLUE   = "#2471A3"
-C_GREEN  = "#27AE60"
-C_ORANGE = "#E67E22"
-C_RED    = "#E74C3C"
-C_PURPLE = "#9B59B6"
-C_GREY   = "#95A5A6"
+st.markdown("---")
 
 chart_col1, chart_col2 = st.columns(2)
 
@@ -406,10 +436,18 @@ with chart_col2:
                         fmt(landed_cost)],
         textposition = "outside",
         textfont     = dict(size=10,color=C_NAVY),
-        connector    = dict(line=dict(color="#E8ECF1",width=1,dash="dot")),
-        increasing   = dict(marker=dict(color="rgba(36,113,163,0.85)")),
-        decreasing   = dict(marker=dict(color="rgba(231,76,60,0.85)")),
-        totals       = dict(marker=dict(color="rgba(27,58,107,0.90)"))
+        connector    = dict(
+            line=dict(color="#E8ECF1",width=1,dash="dot")
+        ),
+        increasing   = dict(
+            marker=dict(color="rgba(36,113,163,0.85)")
+        ),
+        decreasing   = dict(
+            marker=dict(color="rgba(231,76,60,0.85)")
+        ),
+        totals       = dict(
+            marker=dict(color="rgba(27,58,107,0.90)")
+        )
     ))
     fig_wf.update_layout(
         height        = 350,
@@ -422,7 +460,7 @@ with chart_col2:
             range=[0, max_y],
             tickfont=dict(size=9)
         ),
-        xaxis         = dict(tickfont=dict(size=9))
+        xaxis = dict(tickfont=dict(size=9))
     )
     st.plotly_chart(fig_wf, use_container_width=True)
 
@@ -436,12 +474,14 @@ fig_g = go.Figure()
 
 fig_g.add_trace(go.Indicator(
     mode   = "gauge+number",
-    value  = pct_sold,
+    value  = float(pct_sold),
     title  = {
-        "text": f"<b>Stock Sold</b><br>"
-                f"<span style='font-size:11px;color:#7F8C8D;'>"
-                f"{int(total_sold):,} of {int(total_procured):,} units"
-                f"</span>",
+        "text": (
+            f"<b>Stock Sold</b><br>"
+            f"<span style='font-size:11px;color:#7F8C8D;'>"
+            f"{int(total_sold):,} of {int(total_procured):,} units"
+            f"</span>"
+        ),
         "font": {"size":13,"color":C_NAVY}
     },
     number = {"suffix":"%","font":{"size":28,"color":C_NAVY}},
@@ -449,7 +489,8 @@ fig_g.add_trace(go.Indicator(
         "axis" : {"range":[0,100],"dtick":25,
                   "tickfont":{"size":9,"color":C_GREY}},
         "bar"  : {"color":C_GREEN,"thickness":0.3},
-        "bgcolor": "#F0F3F8","borderwidth":0,
+        "bgcolor"    : "#F0F3F8",
+        "borderwidth": 0,
         "steps": [
             {"range":[0,25],"color":"#FADBD8"},
             {"range":[25,50],"color":"#FCF3CF"},
@@ -457,8 +498,9 @@ fig_g.add_trace(go.Indicator(
             {"range":[75,100],"color":"#ABEBC6"}
         ],
         "threshold": {
-            "line":{"color":C_NAVY,"width":2},
-            "thickness":0.75,"value":pct_sold
+            "line"     : {"color":C_NAVY,"width":2},
+            "thickness": 0.75,
+            "value"    : float(pct_sold)
         }
     },
     domain = {"x":[0.05,0.45],"y":[0.05,0.95]}
@@ -466,12 +508,14 @@ fig_g.add_trace(go.Indicator(
 
 fig_g.add_trace(go.Indicator(
     mode   = "gauge+number",
-    value  = capital_risk,
+    value  = float(capital_risk),
     title  = {
-        "text": f"<b>Capital at Risk</b><br>"
-                f"<span style='font-size:11px;color:#7F8C8D;'>"
-                f"{fmt(remaining * avg_per_unit)} unsold"
-                f"</span>",
+        "text": (
+            f"<b>Capital at Risk</b><br>"
+            f"<span style='font-size:11px;color:#7F8C8D;'>"
+            f"{fmt(remaining * avg_per_unit)} unsold"
+            f"</span>"
+        ),
         "font": {"size":13,"color":C_NAVY}
     },
     number = {"suffix":"%","font":{"size":28,"color":C_RED}},
@@ -479,7 +523,8 @@ fig_g.add_trace(go.Indicator(
         "axis" : {"range":[0,100],"dtick":25,
                   "tickfont":{"size":9,"color":C_GREY}},
         "bar"  : {"color":C_RED,"thickness":0.3},
-        "bgcolor": "#F0F3F8","borderwidth":0,
+        "bgcolor"    : "#F0F3F8",
+        "borderwidth": 0,
         "steps": [
             {"range":[0,25],"color":"#ABEBC6"},
             {"range":[25,50],"color":"#D5F5E3"},
@@ -487,8 +532,9 @@ fig_g.add_trace(go.Indicator(
             {"range":[75,100],"color":"#FADBD8"}
         ],
         "threshold": {
-            "line":{"color":C_RED,"width":2},
-            "thickness":0.75,"value":capital_risk
+            "line"     : {"color":C_RED,"width":2},
+            "thickness": 0.75,
+            "value"    : float(capital_risk)
         }
     },
     domain = {"x":[0.55,0.95],"y":[0.05,0.95]}
@@ -501,15 +547,13 @@ fig_g.update_layout(
 )
 st.plotly_chart(fig_g, use_container_width=True)
 
-st.divider()
-
 # ============================================================
 #  SECTION 5: LOT DETAIL TABLE
 # ============================================================
+st.markdown("---")
 st.markdown("#### 📋 Lot Detail — Full Breakdown")
 
 if len(df_landed) > 0:
-    # Select key columns by position
     cols_to_show = [0,1,2,4,9,17,19,26,27,28,29,31,32]
     col_names    = [
         "Lot","Shipment","Category","Qty",
@@ -518,13 +562,11 @@ if len(df_landed) > 0:
         "Revenue","Profit","Margin%","ROI%"
     ]
 
-    # Build display table
     display_df = pd.DataFrame()
-    for i, (col_idx, col_name) in enumerate(zip(cols_to_show, col_names)):
+    for col_idx, col_name in zip(cols_to_show, col_names):
         if col_idx < len(df_landed.columns):
             display_df[col_name] = df_landed.iloc[:, col_idx]
 
-    # Convert money columns to numeric for display
     money_cols = ["Purchase","Freight","Duty",
                   "Total Landed","$/Unit","Revenue","Profit"]
     pct_cols   = ["Margin%","ROI%"]
@@ -532,20 +574,22 @@ if len(df_landed) > 0:
     for c in money_cols:
         if c in display_df.columns:
             display_df[c] = to_n(display_df[c])
-
     for c in pct_cols:
         if c in display_df.columns:
             display_df[c] = to_n(display_df[c])
 
-    # Remove empty rows
     display_df = display_df[
         display_df["Lot"].astype(str).str.strip() != ""
     ]
     display_df = display_df[
         display_df["Lot"].astype(str).str.upper() != "TOTALS"
     ]
+    display_df = display_df[
+        ~display_df["Lot"].astype(str).str.contains(
+            "From|Lot Number", na=False
+        )
+    ]
 
-    # Format for display
     format_dict = {}
     for c in money_cols:
         if c in display_df.columns:
@@ -554,7 +598,6 @@ if len(df_landed) > 0:
         if c in display_df.columns:
             format_dict[c] = "{:.1f}%"
 
-    # Style the table
     def color_profit(val):
         try:
             color = "#27AE60" if float(val) >= 0 else "#E74C3C"
@@ -566,7 +609,6 @@ if len(df_landed) > 0:
 
     if "Profit" in display_df.columns:
         styled = styled.map(color_profit, subset=["Profit"])
-
     if "Margin%" in display_df.columns:
         styled = styled.map(color_profit, subset=["Margin%"])
 
@@ -578,9 +620,8 @@ if len(df_landed) > 0:
         "font-family"     : "Arial, sans-serif"
     })
 
-    styled = styled.set_table_styles([{
-        "selector": "th",
-        "props": [
+    styled = styled.set_table_styles([
+        {"selector": "th", "props": [
             ("background-color", "#1B3A6B"),
             ("color", "white"),
             ("font-size", "10px"),
@@ -589,11 +630,11 @@ if len(df_landed) > 0:
             ("letter-spacing", "1px"),
             ("padding", "8px 12px"),
             ("border", "1px solid #2471A3")
-        ]
-    },{
-        "selector": "tr:nth-child(even)",
-        "props": [("background-color", "#F4F7FB")]
-    }])
+        ]},
+        {"selector": "tr:nth-child(even)", "props": [
+            ("background-color", "#F4F7FB")
+        ]}
+    ])
 
     st.write(styled.to_html(), unsafe_allow_html=True)
 
@@ -603,9 +644,12 @@ else:
 # ============================================================
 #  FOOTER
 # ============================================================
-st.divider()
+st.markdown("---")
 st.markdown(f"""
-<div style="text-align:center;color:#95A5A6;font-size:11px;padding:10px;">
+<div style="text-align:center;
+            color:#95A5A6;
+            font-size:11px;
+            padding:10px;">
   📊 IT Asset Trading P&L Dashboard &nbsp;·&nbsp;
   Connected Live to Google Sheets &nbsp;·&nbsp;
   Auto-refreshes every 10 minutes &nbsp;·&nbsp;
