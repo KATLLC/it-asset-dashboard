@@ -191,7 +191,7 @@ with logo_col:
         response = requests.get(logo_url, timeout=5)
         if response.status_code == 200:
             logo_img = Image.open(BytesIO(response.content))
-            st.image(logo_img, width=110)
+            st.image(logo_img, width=160)
     except:
         st.write("")
 
@@ -324,8 +324,8 @@ i2.metric("📤 Sold",      f"{int(total_sold):,}",
 i3.metric("🏭 Remaining", f"{int(remaining):,}")
 
 # Fixed inventory bar
-pct_sold_display      = max(pct_sold, 1)
-pct_remaining_display = max(pct_remaining, 1)
+pct_sold_display      = max(float(pct_sold), 1)
+pct_remaining_display = max(float(pct_remaining), 1)
 
 st.markdown(f"""
 <div style="margin:10px 0;">
@@ -334,24 +334,10 @@ st.markdown(f"""
               border-radius:8px;
               overflow:hidden;">
     <div style="width:{pct_sold_display:.1f}%;
-                background:linear-gradient(90deg,#27AE60,#1E8449);
-                display:flex;
-                align-items:center;
-                justify-content:center;
-                color:white;
-                font-size:11px;
-                font-weight:600;">
-      {"Sold " + fmtp(pct_sold) if pct_sold > 8 else ""}
+                background:linear-gradient(90deg,#27AE60,#1E8449);">
     </div>
     <div style="width:{pct_remaining_display:.1f}%;
-                background:linear-gradient(90deg,#E67E22,#D35400);
-                display:flex;
-                align-items:center;
-                justify-content:center;
-                color:white;
-                font-size:11px;
-                font-weight:600;">
-      {"Remaining " + fmtp(pct_remaining) if pct_remaining > 8 else ""}
+                background:linear-gradient(90deg,#E67E22,#D35400);">
     </div>
   </div>
   <div style="display:flex;gap:16px;margin-top:6px;">
@@ -359,7 +345,7 @@ st.markdown(f"""
                 font-size:10px;color:#7F8C8D;">
       <div style="width:8px;height:8px;border-radius:50%;
                   background:#27AE60;"></div>
-      Sold: {int(total_sold):,} units
+      Sold: {int(total_sold):,} units ({fmtp(pct_sold)})
     </div>
     <div style="display:flex;align-items:center;gap:5px;
                 font-size:10px;color:#7F8C8D;">
@@ -371,7 +357,6 @@ st.markdown(f"""
   </div>
 </div>
 """, unsafe_allow_html=True)
-
 # ============================================================
 #  SECTION 4: CHARTS
 # ============================================================
