@@ -543,10 +543,10 @@ if len(df_landed) > 0:
     styled = display_df.style.format(format_dict)
 
     if "Profit" in display_df.columns:
-        styled = styled.applymap(color_profit, subset=["Profit"])
+        styled = styled.map(color_profit, subset=["Profit"])
 
     if "Margin%" in display_df.columns:
-        styled = styled.applymap(color_profit, subset=["Margin%"])
+        styled = styled.map(color_profit, subset=["Margin%"])
 
     styled = styled.set_properties(**{
         "background-color": "white",
