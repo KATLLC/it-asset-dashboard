@@ -194,7 +194,7 @@ with logo_col:
         response = requests.get(logo_url, timeout=5)
         if response.status_code == 200:
             logo_img = Image.open(BytesIO(response.content))
-            st.image(logo_img, width=200)
+            st.image(logo_img, width=250)
     except:
         st.write("")
 
