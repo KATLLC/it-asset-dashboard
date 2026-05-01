@@ -9,26 +9,40 @@ import requests
 from PIL import Image
 from io import BytesIO
 
-st.set_page_config(page_title="P&L Executive Dashboard", page_icon="📊", layout="wide", initial_sidebar_state="collapsed")
+# ============================================================
+# PAGE CONFIG - MOBILE OPTIMIZED
+# ============================================================
+st.set_page_config(
+    page_title="KAT P&L Dashboard",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
+# --- MOBILE CSS ENHANCEMENTS ---
 st.markdown("""
 <style>
     .main {background-color: #F4F7FB;}
     #MainMenu, footer, header {visibility: hidden;}
-    .block-container {padding-top: 1rem;}
+    
+    /* Optimize padding for mobile */
+    @media (max-width: 640px) {
+        .block-container {
+            padding-top: 1rem !important;
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+        }
+        [data-testid="stMetricValue"] {
+            font-size: 18px !important;
+        }
+    }
+
     .row-label {
-        color: #1B3A6B;
-        font-size: 10px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        padding-left: 8px;
-        border-left: 3px solid #3498DB;
-        margin: 16px 0 10px 0;
-        font-family: Arial, sans-serif;
+        color: #1B3A6B; font-size: 10px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 2px; padding-left: 8px; border-left: 3px solid #3498DB;
+        margin: 16px 0 10px 0; font-family: Arial, sans-serif;
     }
     hr {border-color: #E8ECF1; margin: 12px 0;}
-    [data-testid="stMetricValue"] {font-size: 20px !important;}
 </style>
 """, unsafe_allow_html=True)
 
