@@ -334,8 +334,12 @@ bp1.metric("💼 Total Capital", fmt(net_capital_in))
 bp2.metric("🛒 Spent", fmt(proc_spend), f"{fmtp(pct_budget_used)} used")
 bp3.metric("✅ Available", fmt(avail_buying), f"{fmtp(pct_budget_avail)} free")
 
-st.progress(min(pct_budget_used / 100, 1.0))
-st.caption(f"Budget Utilization: {fmtp(pct_budget_used)} deployed | {fmtp(pct_budget_avail)} available")
+fig_bp = go.Figure()
+fig_bp.add_trace(go.Bar(x=[proc_spend], y=["Budget"], orientation="h", name="Spent", marker=dict(color="#E67E22"), text=[fmt(proc_spend)], textposition="inside", textfont=dict(color="white", size=11)))
+fig_bp.add_trace(go.Bar(x=[avail_buying], y=["Budget"], orientation="h", name="Available", marker=dict(color="#27AE60"), text=[fmt(avail_buying)], textposition="inside", textfont=dict(color="white", size=11)))
+fig_bp.update_layout(barmode="stack", height=60, margin=dict(t=0, b=0, l=0, r=0), paper_bgcolor="white", plot_bgcolor="white", showlegend=False, xaxis=dict(visible=False), yaxis=dict(visible=False))
+st.plotly_chart(fig_bp, use_container_width=True)
+st.caption(f"Budget Utilization: {fmtp(pct_budget_used)} deployed | {fmtp(pct_budget_avail)} available") available")
 
 # ============================================================
 # INVENTORY PIPELINE (using Streamlit native)
@@ -348,8 +352,12 @@ inv1.metric("📥 Procured", f"{int(total_procured):,}")
 inv2.metric("📤 Sold", f"{int(total_sold):,}", f"{fmtp(stock_sold_pct)} of stock")
 inv3.metric("🏭 Remaining", f"{int(units_remaining):,}", f"{fmt(capital_deployed)} at cost")
 
-st.progress(min(stock_sold_pct / 100, 1.0))
-st.caption(f"Stock Movement: {fmtp(stock_sold_pct)} sold | {int(total_sold):,} units sold | {int(units_remaining):,} remaining")
+fig_inv = go.Figure()
+fig_inv.add_trace(go.Bar(x=[total_sold], y=["Stock"], orientation="h", name="Sold", marker=dict(color="#27AE60"), text=[f"{int(total_sold):,} sold"], textposition="inside", textfont=dict(color="white", size=11)))
+fig_inv.add_trace(go.Bar(x=[units_remaining], y=["Stock"], orientation="h", name="Remaining", marker=dict(color="#E67E22"), text=[f"{int(units_remaining):,} remaining"], textposition="inside", textfont=dict(color="white", size=11)))
+fig_inv.update_layout(barmode="stack", height=60, margin=dict(t=0, b=0, l=0, r=0), paper_bgcolor="white", plot_bgcolor="white", showlegend=False, xaxis=dict(visible=False), yaxis=dict(visible=False))
+st.plotly_chart(fig_inv, use_container_width=True)
+st.caption(f"Stock Movement: {fmtp(stock_sold_pct)} sold | {int(total_sold):,} units sold | {int(units_remaining):,} remaining")t(units_remaining):,} remaining")
 
 # ============================================================
 # CHARTS
