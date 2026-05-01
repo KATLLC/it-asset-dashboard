@@ -8,9 +8,6 @@ import requests
 from PIL import Image
 from io import BytesIO
 
-# ============================================================
-# PAGE CONFIG
-# ============================================================
 st.set_page_config(
     page_title="P&L Executive Dashboard",
     page_icon="📊",
@@ -18,20 +15,11 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ============================================================
-# CSS
-# ============================================================
 st.markdown("""
 <style>
-.main {
-    background-color: #F4F7FB;
-}
-#MainMenu, footer, header {
-    visibility: hidden;
-}
-.block-container {
-    padding-top: 1rem;
-}
+.main {background-color: #F4F7FB;}
+#MainMenu, footer, header {visibility: hidden;}
+.block-container {padding-top: 1rem;}
 .row-label {
     color: #1B3A6B;
     font-size: 10px;
@@ -43,16 +31,10 @@ st.markdown("""
     margin: 16px 0 10px 0;
     font-family: Arial, sans-serif;
 }
-hr {
-    border-color: #E8ECF1;
-    margin: 12px 0;
-}
+hr {border-color: #E8ECF1; margin: 12px 0;}
 </style>
 """, unsafe_allow_html=True)
 
-# ============================================================
-# AUTHENTICATION
-# ============================================================
 credentials = st.secrets["gcp_service_account"]
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -61,9 +43,6 @@ scope = [
 creds = Credentials.from_service_account_info(credentials, scopes=scope)
 gc = gspread.authorize(creds)
 
-# ============================================================
-# LOAD DATA
-# ============================================================
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1kLIT79DBtG13nlOEkvrWe0FauQVOLi9IxMcYbLpdWL4"
 sh = gc.open_by_url(SHEET_URL)
 
@@ -81,14 +60,11 @@ def get_data(name, h_row=4, d_row=6):
         st.error(f"Error loading {name}: {e}")
         return pd.DataFrame()
 
-df_proc   = get_data("PROCUREMENT")
+df_proc = get_data("PROCUREMENT")
 df_landed = get_data("LANDED COST ANALYSIS")
-df_sales  = get_data("SALES")
-df_cap    = get_data("CAPITAL LOG", h_row=3, d_row=4)
+df_sales = get_data("SALES")
+df_cap = get_data("CAPITAL LOG", h_row=3, d_row=4)
 
-# ============================================================
-# HELPERS
-# ============================================================
 def to_n(series):
     return pd.to_numeric(
         series.astype(str)
@@ -170,9 +146,6 @@ def card_html(label, value, subtitle, color):
     </div>
     """
 
-# ============================================================
-# CLEAN DATA
-# ============================================================
 if not df_proc.empty:
     df_proc = df_proc[df_proc.iloc[:, 0].astype(str).str.strip() != ""]
     df_proc = df_proc[df_proc.iloc[:, 0].astype(str).str.upper() != "TOTALS"]
@@ -187,36 +160,28 @@ if not df_landed.empty:
 if not df_sales.empty and len(df_sales.columns) > 10:
     df_sales = df_sales[safe_col(df_sales, 10) > 0]
 
-# ============================================================
-# KPI CALCULATIONS
-# ============================================================
-# Row 1 - Bottom line
 total_revenue = safe_col(df_landed, 28).sum()
-landed_cost   = safe_col(df_landed, 26).sum()
-gross_profit  = safe_col(df_landed, 29).sum()
-net_margin    = (gross_profit / total_revenue * 100) if total_revenue > 0 else 0
-roi_pct       = (gross_profit / landed_cost * 100) if landed_cost > 0 else 0
+landed_cost = safe_col(df_landed, 26).sum()
+gross_profit = safe_col(df_landed, 29).sum()
+net_margin = (gross_profit / total_revenue * 100) if total_revenue > 0 else 0
+roi_pct = (gross_profit / landed_cost * 100) if landed_cost > 0 else 0
 
-# Row 2 - Cash position
 net_capital_in = safe_col(df_cap, 4).sum()
 if net_capital_in == 0:
     net_capital_in = 5110.00
 
-proc_spend    = safe_col(df_proc, 16).sum()
-avail_buying  = net_capital_in - proc_spend
+proc_spend = safe_col(df_proc, 16).sum()
+avail_buying = net_capital_in - proc_spend
 
-# Inventory
-total_units     = safe_col(df_landed, 4).sum()
-avg_unit_cost   = landed_cost / total_units if total_units > 0 else 0
-total_procured  = safe_col(df_proc, 6).sum()
-total_sold      = safe_col(df_sales, 7).sum()
+total_units = safe_col(df_landed, 4).sum()
+avg_unit_cost = landed_cost / total_units if total_units > 0 else 0
+total_procured = safe_col(df_proc, 6).sum()
+total_sold = safe_col(df_sales, 7).sum()
 units_remaining = total_procured - total_sold
 
 capital_deployed = units_remaining * avg_unit_cost
-cash_recovery    = (total_revenue / net_capital_in * 100) if net_capital_in > 0 else 0
-break_even       = (total_revenue / landed_cost * 100) if landed_cost > 0 else 0
-
-# Row 3 - Stock health
+cash_recovery = (total_revenue / net_capital_in * 100) if net_capital_in > 0 else 0
+break_even = (total_revenue / landed_cost * 100) if landed_cost > 0 else 0
 stock_sold_pct = (total_sold / total_procured * 100) if total_procured > 0 else 0
 
 try:
@@ -225,42 +190,41 @@ try:
 except Exception:
     avg_days_in_stock = 0
 
-# Cost structure
 cost_purchase = safe_col(df_landed, 9).sum()
-cost_usa      = safe_col(df_landed, 10).sum() + safe_col(df_landed, 11).sum()
-cost_freight  = safe_col(df_landed, 16).sum()
-cost_duty     = safe_col(df_landed, 18).sum()
-cost_agent    = safe_col(df_landed, 20).sum()
-cost_local    = safe_col(df_landed, 22).sum()
-cost_other    = safe_col(df_landed, 24).sum()
+cost_usa = safe_col(df_landed, 10).sum() + safe_col(df_landed, 11).sum()
+cost_freight = safe_col(df_landed, 16).sum()
+cost_duty = safe_col(df_landed, 18).sum()
+cost_agent = safe_col(df_landed, 20).sum()
+cost_local = safe_col(df_landed, 22).sum()
+cost_other = safe_col(df_landed, 24).sum()
 
 now = datetime.now().strftime("%d %b %Y  %H:%M")
 
-# Colors
-c1  = color_positive(total_revenue)
-c2  = color_positive(gross_profit)
-c3  = color_positive(net_margin)
-c4  = color_positive(roi_pct)
-c5  = color_positive(avail_buying)
-c6  = "#E74C3C" if capital_deployed > net_capital_in * 0.7 else "#F39C12"
-c7  = threshold_color(cash_recovery, green=50, orange=20)
-c8  = threshold_color(break_even, green=100, orange=50)
-c9  = "#27AE60" if units_remaining < total_procured * 0.5 else "#F39C12"
+pct_budget_used = (proc_spend / net_capital_in * 100) if net_capital_in > 0 else 0
+pct_budget_avail = 100 - pct_budget_used
+
+c1 = color_positive(total_revenue)
+c2 = color_positive(gross_profit)
+c3 = color_positive(net_margin)
+c4 = color_positive(roi_pct)
+c5 = color_positive(avail_buying)
+c6 = "#E74C3C" if capital_deployed > net_capital_in * 0.7 else "#F39C12"
+c7 = threshold_color(cash_recovery, green=50, orange=20)
+c8 = threshold_color(break_even, green=100, orange=50)
+c9 = "#27AE60" if units_remaining < total_procured * 0.5 else "#F39C12"
 c10 = threshold_color(stock_sold_pct, green=70, orange=30)
 c11 = "#27AE60" if avg_days_in_stock < 45 else "#F39C12" if avg_days_in_stock < 90 else "#E74C3C"
 c12 = "#1B3A6B"
 
-C_NAVY   = "#1B3A6B"
-C_BLUE   = "#2471A3"
-C_GREEN  = "#27AE60"
+C_NAVY = "#1B3A6B"
+C_BLUE = "#2471A3"
+C_GREEN = "#27AE60"
 C_ORANGE = "#E67E22"
-C_RED    = "#E74C3C"
+C_RED = "#E74C3C"
 C_PURPLE = "#9B59B6"
-C_GREY   = "#95A5A6"
+C_GREY = "#95A5A6"
 
-# ============================================================
 # HEADER
-# ============================================================
 logo_col, title_col = st.columns([1, 7])
 
 with logo_col:
@@ -268,7 +232,7 @@ with logo_col:
         logo_url = "https://raw.githubusercontent.com/KATLLC/it-asset-dashboard/main/logo.png"
         response = requests.get(logo_url, timeout=5)
         if response.status_code == 200:
-            st.image(Image.open(BytesIO(response.content)), width=350)
+            st.image(Image.open(BytesIO(response.content)), width=160)
     except Exception:
         st.write("")
 
@@ -299,106 +263,89 @@ with title_col:
             font-size:11px;
             font-weight:600;
             font-family:Arial,sans-serif;
-        ">
-            🟢 LIVE DATA
-        </div>
+        ">🟢 LIVE DATA</div>
     </div>
     """, unsafe_allow_html=True)
 
-# ============================================================
-# ROW 1 — THE BOTTOM LINE
-# ============================================================
+# ROW 1
 st.markdown('<div class="row-label">📈 The Bottom Line</div>', unsafe_allow_html=True)
-r1c1, r1c2, r1c3, r1c4 = st.columns(4)
-
-with r1c1:
+r1a, r1b, r1c, r1d = st.columns(4)
+with r1a:
     st.markdown(card_html("💰 Total Revenue", fmt(total_revenue), "All sales recorded", c1), unsafe_allow_html=True)
-with r1c2:
+with r1b:
     st.markdown(card_html("📈 Gross Profit", fmt(gross_profit), "Revenue minus landed cost", c2), unsafe_allow_html=True)
-with r1c3:
+with r1c:
     st.markdown(card_html("🎯 Net Margin %", fmtp(net_margin), "Target above 25%", c3), unsafe_allow_html=True)
-with r1c4:
+with r1d:
     st.markdown(card_html("🔄 ROI %", fmtp(roi_pct), "Target above 30%", c4), unsafe_allow_html=True)
 
-# ============================================================
-# ROW 2 — CASH POSITION
-# ============================================================
+# ROW 2
 st.markdown('<div class="row-label">💵 Cash Position</div>', unsafe_allow_html=True)
-r2c1, r2c2, r2c3, r2c4 = st.columns(4)
-
-with r2c1:
-    st.markdown(card_html("✅ Available Buying Power", fmt(avail_buying), f"Of {fmt(net_capital_in)} total capital", c5), unsafe_allow_html=True)
-with r2c2:
+r2a, r2b, r2c, r2d = st.columns(4)
+with r2a:
+    st.markdown(card_html("✅ Buying Power", fmt(avail_buying), f"Of {fmt(net_capital_in)} total capital", c5), unsafe_allow_html=True)
+with r2b:
     st.markdown(card_html("🔒 Capital Deployed", fmt(capital_deployed), "Locked in unsold stock", c6), unsafe_allow_html=True)
-with r2c3:
-    st.markdown(card_html("💹 Cash Recovery Rate", fmtp(cash_recovery), "Revenue / Net Capital In", c7), unsafe_allow_html=True)
-with r2c4:
-    st.markdown(card_html("🎯 Break Even Progress", fmtp(break_even), "100% = break even", c8), unsafe_allow_html=True)
+with r2c:
+    st.markdown(card_html("💹 Cash Recovery", fmtp(cash_recovery), "Revenue / Capital In", c7), unsafe_allow_html=True)
+with r2d:
+    st.markdown(card_html("🎯 Break Even", fmtp(break_even), "100% = break even", c8), unsafe_allow_html=True)
 
-# ============================================================
-# ROW 3 — STOCK HEALTH
-# ============================================================
+# ROW 3
 st.markdown('<div class="row-label">📦 Stock Health</div>', unsafe_allow_html=True)
 days_label = "Good" if avg_days_in_stock < 45 else "Aging" if avg_days_in_stock < 90 else "Action needed"
-r3c1, r3c2, r3c3, r3c4 = st.columns(4)
-
-with r3c1:
+r3a, r3b, r3c, r3d = st.columns(4)
+with r3a:
     st.markdown(card_html("🏭 Units Remaining", f"{int(units_remaining):,}", f"Of {int(total_procured):,} procured", c9), unsafe_allow_html=True)
-with r3c2:
+with r3b:
     st.markdown(card_html("📤 Stock Sold %", fmtp(stock_sold_pct), f"Target above 70% | {int(total_sold):,} sold", c10), unsafe_allow_html=True)
-with r3c3:
-    st.markdown(card_html("📅 Avg Days in Stock", f"{avg_days_in_stock} days", days_label, c11), unsafe_allow_html=True)
-with r3c4:
-    st.markdown(card_html("🔢 Landed Cost / Unit", fmt(avg_unit_cost), "True landed cost per unit", c12), unsafe_allow_html=True)
+with r3c:
+    st.markdown(card_html("📅 Days in Stock", f"{avg_days_in_stock} days", days_label, c11), unsafe_allow_html=True)
+with r3d:
+    st.markdown(card_html("🔢 Cost Per Unit", fmt(avg_unit_cost), "True landed cost per unit", c12), unsafe_allow_html=True)
 
-# ============================================================
-# BUYING POWER BAR (PLOTLY)
-# ============================================================
+# BUYING POWER BAR
 st.markdown("---")
 st.markdown('<div class="row-label">💵 Auction Buying Power</div>', unsafe_allow_html=True)
 
 bp1, bp2, bp3 = st.columns(3)
 bp1.metric("💼 Total Capital", fmt(net_capital_in))
-bp2.metric("🛒 Spent", fmt(proc_spend), f"{fmtp((proc_spend / net_capital_in * 100) if net_capital_in > 0 else 0)} used")
-bp3.metric("✅ Available", fmt(avail_buying), f"{fmtp((avail_buying / net_capital_in * 100) if net_capital_in > 0 else 0)} free")
+bp2.metric("🛒 Spent", fmt(proc_spend), f"{fmtp(pct_budget_used)} used")
+bp3.metric("✅ Available", fmt(avail_buying), f"{fmtp(pct_budget_avail)} free")
 
 fig_bp = go.Figure()
 fig_bp.add_trace(go.Bar(
-    x=[proc_spend],
-    y=["Budget"],
-    orientation="h",
+    x=[proc_spend], y=[" "], orientation="h",
     marker=dict(color="#E67E22"),
-    text=[fmt(proc_spend)],
-    textposition="inside",
-    textfont=dict(color="white", size=11),
-    name="Spent"
+    hovertemplate=f"Spent: {fmt(proc_spend)}<extra></extra>",
+    showlegend=False
 ))
 fig_bp.add_trace(go.Bar(
-    x=[max(avail_buying, 0)],
-    y=["Budget"],
-    orientation="h",
+    x=[max(avail_buying, 0)], y=[" "], orientation="h",
     marker=dict(color="#27AE60"),
-    text=[fmt(max(avail_buying, 0))],
-    textposition="inside",
-    textfont=dict(color="white", size=11),
-    name="Available"
+    hovertemplate=f"Available: {fmt(max(avail_buying, 0))}<extra></extra>",
+    showlegend=False
 ))
 fig_bp.update_layout(
     barmode="stack",
-    height=90,
-    margin=dict(t=10, b=10, l=10, r=10),
-    paper_bgcolor="white",
-    plot_bgcolor="white",
-    showlegend=False,
+    height=40,
+    margin=dict(t=0, b=0, l=0, r=0),
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
     xaxis=dict(visible=False),
-    yaxis=dict(visible=False)
+    yaxis=dict(visible=False),
+    bargap=0
 )
 st.plotly_chart(fig_bp, use_container_width=True)
-st.caption(f"Budget Utilization: {fmtp((proc_spend / net_capital_in * 100) if net_capital_in > 0 else 0)} deployed | {fmtp((avail_buying / net_capital_in * 100) if net_capital_in > 0 else 0)} available")
+st.caption(
+    f"Budget: {fmtp(pct_budget_used)} deployed | "
+    f"{fmtp(pct_budget_avail)} available | "
+    f"Spent: {fmt(proc_spend)} | "
+    f"Available: {fmt(avail_buying)} | "
+    f"Total: {fmt(net_capital_in)}"
+)
 
-# ============================================================
-# INVENTORY BAR (PLOTLY)
-# ============================================================
+# INVENTORY BAR
 st.markdown("---")
 st.markdown('<div class="row-label">📦 Inventory Pipeline</div>', unsafe_allow_html=True)
 
@@ -409,41 +356,36 @@ inv3.metric("🏭 Remaining", f"{int(units_remaining):,}", f"{fmt(capital_deploy
 
 fig_inv = go.Figure()
 fig_inv.add_trace(go.Bar(
-    x=[total_sold],
-    y=["Stock"],
-    orientation="h",
+    x=[total_sold], y=[" "], orientation="h",
     marker=dict(color="#27AE60"),
-    text=[f"{int(total_sold):,} sold"],
-    textposition="inside",
-    textfont=dict(color="white", size=11),
-    name="Sold"
+    hovertemplate=f"Sold: {int(total_sold):,}<extra></extra>",
+    showlegend=False
 ))
 fig_inv.add_trace(go.Bar(
-    x=[max(units_remaining, 0)],
-    y=["Stock"],
-    orientation="h",
+    x=[max(units_remaining, 0)], y=[" "], orientation="h",
     marker=dict(color="#E67E22"),
-    text=[f"{int(max(units_remaining, 0)):,} remaining"],
-    textposition="inside",
-    textfont=dict(color="white", size=11),
-    name="Remaining"
+    hovertemplate=f"Remaining: {int(max(units_remaining, 0)):,}<extra></extra>",
+    showlegend=False
 ))
 fig_inv.update_layout(
     barmode="stack",
-    height=90,
-    margin=dict(t=10, b=10, l=10, r=10),
-    paper_bgcolor="white",
-    plot_bgcolor="white",
-    showlegend=False,
+    height=40,
+    margin=dict(t=0, b=0, l=0, r=0),
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
     xaxis=dict(visible=False),
-    yaxis=dict(visible=False)
+    yaxis=dict(visible=False),
+    bargap=0
 )
 st.plotly_chart(fig_inv, use_container_width=True)
-st.caption(f"Stock Movement: {fmtp(stock_sold_pct)} sold | {int(total_sold):,} units sold | {int(units_remaining):,} remaining")
+st.caption(
+    f"Stock: {fmtp(stock_sold_pct)} sold | "
+    f"{int(total_sold):,} sold | "
+    f"{int(units_remaining):,} remaining | "
+    f"{fmt(capital_deployed)} at cost"
+)
 
-# ============================================================
 # CHARTS
-# ============================================================
 st.markdown("---")
 chart1, chart2 = st.columns(2)
 
@@ -464,9 +406,7 @@ with chart1:
         textfont=dict(size=11, color="white")
     ))
     fig_pie.update_layout(
-        height=320,
-        paper_bgcolor="white",
-        showlegend=True,
+        height=320, paper_bgcolor="white", showlegend=True,
         margin=dict(t=20, b=20, l=20, r=20),
         legend=dict(font=dict(size=10, color=C_NAVY))
     )
@@ -489,21 +429,15 @@ with chart2:
         totals=dict(marker=dict(color="rgba(27,58,107,0.90)"))
     ))
     fig_wf.update_layout(
-        height=320,
-        paper_bgcolor="white",
-        plot_bgcolor="#FAFBFD",
-        showlegend=False,
-        margin=dict(t=20, b=60, l=60, r=40),
+        height=320, paper_bgcolor="white", plot_bgcolor="#FAFBFD",
+        showlegend=False, margin=dict(t=20, b=60, l=60, r=40),
         yaxis=dict(gridcolor=C_GREY, range=[0, max_y], tickfont=dict(size=9)),
         xaxis=dict(tickfont=dict(size=9))
     )
     st.plotly_chart(fig_wf, use_container_width=True)
 
-# ============================================================
 # GAUGES
-# ============================================================
 st.markdown('<div class="row-label">📊 Business Health Gauges</div>', unsafe_allow_html=True)
-
 fig_g = go.Figure()
 fig_g.add_trace(go.Indicator(
     mode="gauge+number",
@@ -516,8 +450,7 @@ fig_g.add_trace(go.Indicator(
     gauge={
         "axis": {"range": [0, 100], "dtick": 25, "tickfont": {"size": 9, "color": C_GREY}},
         "bar": {"color": C_GREEN, "thickness": 0.3},
-        "bgcolor": "#F0F3F8",
-        "borderwidth": 0,
+        "bgcolor": "#F0F3F8", "borderwidth": 0,
         "steps": [
             {"range": [0, 25], "color": "#FADBD8"},
             {"range": [25, 50], "color": "#FCF3CF"},
@@ -539,8 +472,7 @@ fig_g.add_trace(go.Indicator(
     gauge={
         "axis": {"range": [0, 150], "dtick": 25, "tickfont": {"size": 9, "color": C_GREY}},
         "bar": {"color": C_BLUE, "thickness": 0.3},
-        "bgcolor": "#F0F3F8",
-        "borderwidth": 0,
+        "bgcolor": "#F0F3F8", "borderwidth": 0,
         "steps": [
             {"range": [0, 50], "color": "#FADBD8"},
             {"range": [50, 100], "color": "#FCF3CF"},
@@ -553,39 +485,29 @@ fig_g.add_trace(go.Indicator(
 fig_g.update_layout(height=280, paper_bgcolor="white", margin=dict(t=40, b=20, l=30, r=30))
 st.plotly_chart(fig_g, use_container_width=True)
 
-# ============================================================
 # LOT TABLE
-# ============================================================
 st.markdown("---")
 st.markdown('<div class="row-label">📋 Lot Detail</div>', unsafe_allow_html=True)
 
 if not df_landed.empty:
     col_indexes = [0, 1, 2, 4, 9, 17, 19, 26, 27, 28, 29, 31, 32]
     col_names = ["Lot", "Shipment", "Category", "Qty", "Purchase", "Freight", "Duty", "Total Landed", "$/Unit", "Revenue", "Profit", "Margin%", "ROI%"]
-
     display_df = pd.DataFrame()
     for idx, name in zip(col_indexes, col_names):
         if len(df_landed.columns) > idx:
             display_df[name] = df_landed.iloc[:, idx]
-
     for c in ["Purchase", "Freight", "Duty", "Total Landed", "$/Unit", "Revenue", "Profit"]:
         if c in display_df.columns:
             display_df[c] = to_n(display_df[c]).map(fmt)
-
     for c in ["Margin%", "ROI%"]:
         if c in display_df.columns:
             display_df[c] = to_n(display_df[c]).map(fmtp)
-
     display_df = display_df[display_df["Lot"].astype(str).str.strip() != ""]
     display_df = display_df[display_df["Lot"].astype(str).str.upper() != "TOTALS"]
-
     st.dataframe(display_df, use_container_width=True)
 else:
     st.info("No lot data available yet.")
 
-# ============================================================
-# FOOTER
-# ============================================================
 st.markdown("---")
 st.markdown(f"""
 <div style="text-align:center;color:#95A5A6;font-size:11px;padding:10px;font-family:Arial;">
