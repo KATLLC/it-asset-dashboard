@@ -148,7 +148,10 @@ pct_sold      = (total_sold / total_procured * 100
 pct_remaining = 100 - pct_sold
 
 # Budget
-BUDGET        = 5110.00
+df_cap = get_data("CAPITAL LOG", h_row=3, d_row=4)
+BUDGET = to_n(df_cap.iloc[:, 4]).sum()
+if BUDGET == 0:
+    BUDGET = 5110.00
 cash_avail    = BUDGET - cash_spent
 pct_used      = (cash_spent / BUDGET * 100 if BUDGET > 0 else 0)
 pct_free      = 100 - pct_used
