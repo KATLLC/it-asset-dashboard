@@ -221,7 +221,7 @@ with title_col:
                     font-weight:700;
                     font-family:Arial,sans-serif;
                 ">
-                    📊 P&L Executive Dashboard
+                    📊 Key Asset Technologies P&L Dashboard
                 </div>
                 <div style="
                     color:rgba(255,255,255,0.60);
@@ -751,7 +751,7 @@ st.markdown(
     "font-size:10px;"
     "padding:20px;"
     "font-family:Arial,sans-serif;"
-    "'>📊 IT Asset Trading P&L Dashboard · "
+    "'>📊 Key Asset Technologies P&L Dashboard · "
     "Connected Live to Google Sheets · "
     "Auto-refreshes every 10 minutes · "
     + now +
