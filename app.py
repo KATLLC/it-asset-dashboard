@@ -199,7 +199,7 @@ with logo_col:
             timeout=5
         )
         if res.status_code == 200:
-            st.image(Image.open(BytesIO(res.content)), width=160)
+            st.image(Image.open(BytesIO(res.content)), width=140)
     except Exception:
         st.write("")
 
