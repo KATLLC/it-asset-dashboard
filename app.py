@@ -695,16 +695,16 @@ st.plotly_chart(fig_g, use_container_width=True)
 # ============================================================
 st.markdown("---")
 st.markdown(
-    '<div class="row-label">📋 Lot Detail</div>',
+    '<div class="row-label">📋 Lot Detail — Full Breakdown</div>',
     unsafe_allow_html=True
 )
 
 if not df_landed.empty:
     col_indexes = [0, 1, 2, 4, 9, 17, 19, 26, 27, 28, 29, 31, 32]
     col_names = [
-        "Lot", "Shipment", "Category", "Qty",
+        "Lot Number", "Shipment", "Category", "Qty",
         "Purchase", "Freight", "Duty",
-        "Total Landed", "$/Unit",
+        "Total Landed", "Cost/Unit",
         "Revenue", "Profit", "Margin%", "ROI%"
     ]
 
@@ -715,26 +715,153 @@ if not df_landed.empty:
 
     money_cols = [
         "Purchase", "Freight", "Duty",
-        "Total Landed", "$/Unit", "Revenue", "Profit"
+        "Total Landed", "Cost/Unit",
+        "Revenue", "Profit"
     ]
     pct_cols = ["Margin%", "ROI%"]
 
     for c in money_cols:
         if c in display_df.columns:
-            display_df[c] = to_n(display_df[c]).map(fmt)
+            display_df[c] = to_n(display_df[c])
 
     for c in pct_cols:
         if c in display_df.columns:
-            display_df[c] = to_n(display_df[c]).map(fmtp)
+            display_df[c] = to_n(display_df[c])
 
     display_df = display_df[
-        display_df["Lot"].astype(str).str.strip() != ""
+        display_df["Lot Number"].astype(str).str.strip() != ""
     ]
     display_df = display_df[
-        display_df["Lot"].astype(str).str.upper() != "TOTALS"
+        display_df["Lot Number"].astype(str).str.upper() != "TOTALS"
+    ]
+    display_df = display_df[
+        ~display_df["Lot Number"].astype(str).str.contains(
+            "From|Lot Number", na=False
+        )
     ]
 
-    st.dataframe(display_df, use_container_width=True, hide_index=True)
+    display_df = display_df.reset_index(drop=True)
+
+    format_dict = {}
+    for c in money_cols:
+        if c in display_df.columns:
+            format_dict[c] = "${:,.2f}"
+    for c in pct_cols:
+        if c in display_df.columns:
+            format_dict[c] = "{:.1f}%"
+
+    def style_profit(val):
+        try:
+            if float(val) >= 0:
+                return "color: #27AE60; font-weight: bold"
+            return "color: #E74C3C; font-weight: bold"
+        except Exception:
+            return ""
+
+    def style_margin(val):
+        try:
+            v = float(val)
+            if v >= 25:
+                return "color: #27AE60; font-weight: bold"
+            if v >= 0:
+                return "color: #F39C12; font-weight: bold"
+            return "color: #E74C3C; font-weight: bold"
+        except Exception:
+            return ""
+
+    def style_roi(val):
+        try:
+            v = float(val)
+            if v >= 30:
+                return "color: #27AE60; font-weight: bold"
+            if v >= 0:
+                return "color: #F39C12; font-weight: bold"
+            return "color: #E74C3C; font-weight: bold"
+        except Exception:
+            return ""
+
+    styled = display_df.style.format(format_dict)
+
+    if "Profit" in display_df.columns:
+        styled = styled.map(style_profit, subset=["Profit"])
+
+    if "Margin%" in display_df.columns:
+        styled = styled.map(style_margin, subset=["Margin%"])
+
+    if "ROI%" in display_df.columns:
+        styled = styled.map(style_roi, subset=["ROI%"])
+
+    styled = styled.set_properties(
+        **{
+            "text-align": "right",
+            "font-family": "Arial, sans-serif",
+            "font-size": "12px",
+            "color": "#1B3A6B",
+            "padding": "8px 12px",
+            "border-bottom": "1px solid #E8ECF1"
+        }
+    )
+
+    styled = styled.set_properties(
+        subset=["Lot Number", "Shipment", "Category"],
+        **{
+            "text-align": "left",
+            "font-weight": "600"
+        }
+    )
+
+    styled = styled.set_properties(
+        subset=["Qty"],
+        **{
+            "text-align": "center"
+        }
+    )
+
+    styled = styled.set_table_styles([
+        {
+            "selector": "th",
+            "props": [
+                ("background-color", "#1B3A6B"),
+                ("color", "white"),
+                ("font-size", "10px"),
+                ("font-weight", "700"),
+                ("text-transform", "uppercase"),
+                ("letter-spacing", "1px"),
+                ("padding", "10px 12px"),
+                ("border", "1px solid #2471A3"),
+                ("font-family", "Arial, sans-serif"),
+                ("text-align", "center")
+            ]
+        },
+        {
+            "selector": "tr:nth-child(even)",
+            "props": [
+                ("background-color", "#F4F7FB")
+            ]
+        },
+        {
+            "selector": "tr:nth-child(odd)",
+            "props": [
+                ("background-color", "white")
+            ]
+        },
+        {
+            "selector": "tr:hover",
+            "props": [
+                ("background-color", "#EBF5FB")
+            ]
+        },
+        {
+            "selector": "td",
+            "props": [
+                ("border-bottom", "1px solid #E8ECF1")
+            ]
+        }
+    ])
+
+    styled = styled.hide(axis="index")
+
+    st.write(styled.to_html(), unsafe_allow_html=True)
 
 else:
     st.info("No lot data available yet.")
