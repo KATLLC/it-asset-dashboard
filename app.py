@@ -691,68 +691,6 @@ fig_g.update_layout(
 st.plotly_chart(fig_g, use_container_width=True)
 
 # ============================================================
-# LOT TABLE
-# ============================================================
-st.markdown("---")
-st.markdown(
-    '<div class="row-label">📋 Lot Detail — Full Breakdown</div>',
-    unsafe_allow_html=True
-)
-
-if not df_landed.empty:
-    col_indexes = [0, 1, 2, 4, 9, 17, 19, 26, 27, 28, 29, 31, 32]
-    col_names = [
-        "Lot Number", "Shipment", "Category", "Qty",
-        "Purchase", "Freight", "Duty",
-        "Total Landed", "Cost/Unit",
-        "Revenue", "Profit", "Margin%", "ROI%"
-    ]
-
-    display_df = pd.DataFrame()
-    for idx, name in zip(col_indexes, col_names):
-        if len(df_landed.columns) > idx:
-            display_df[name] = df_landed.iloc[:, idx]
-
-    money_cols = [
-        "Purchase", "Freight", "Duty",
-        "Total Landed", "Cost/Unit",
-        "Revenue", "Profit"
-    ]
-    pct_cols = ["Margin%", "ROI%"]
-
-    for c in money_cols:
-        if c in display_df.columns:
-            display_df[c] = to_n(display_df[c]).map(fmt)
-
-    for c in pct_cols:
-        if c in display_df.columns:
-            display_df[c] = to_n(display_df[c]).map(fmtp)
-
-    display_df = display_df[
-        display_df["Lot Number"].astype(str).str.strip() != ""
-    ]
-    display_df = display_df[
-        display_df["Lot Number"].astype(str).str.upper() != "TOTALS"
-    ]
-    display_df = display_df[
-        ~display_df["Lot Number"].astype(str).str.contains(
-            "From|Lot Number", na=False
-        )
-    ]
-
-    display_df = display_df.reset_index(drop=True)
-
-    st.dataframe(
-        display_df,
-        use_container_width=True,
-        hide_index=True,
-        height=400
-    )
-
-else:
-    st.info("No lot data available yet.")
-
-# ============================================================
 # FOOTER
 # ============================================================
 st.markdown("---")
