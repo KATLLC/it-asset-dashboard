@@ -199,7 +199,7 @@ with logo_col:
             timeout=5
         )
         if res.status_code == 200:
-            st.image(Image.open(BytesIO(res.content)), width=160)
+            st.image(Image.open(BytesIO(res.content)), width=400)
     except Exception:
         st.write("")
 
@@ -221,7 +221,7 @@ with title_col:
                     font-weight:700;
                     font-family:Arial,sans-serif;
                 ">
-                    📊 Key Asset Technologies P&L Dashboard
+                    📊 Key Asset Technologies
                 </div>
                 <div style="
                     color:rgba(255,255,255,0.60);
@@ -229,7 +229,7 @@ with title_col:
                     margin-top:4px;
                     font-family:Arial,sans-serif;
                 ">
-                    IT Asset Trading · Procurement → Shipment → Clearing → Sales · {now}
+                    P&L Dashboard · Procurement → Shipment → Clearing → Sales · {now}
                 </div>
             </div>
             <div style="
@@ -722,11 +722,11 @@ if not df_landed.empty:
 
     for c in money_cols:
         if c in display_df.columns:
-            display_df[c] = to_n(display_df[c])
+            display_df[c] = to_n(display_df[c]).map(fmt)
 
     for c in pct_cols:
         if c in display_df.columns:
-            display_df[c] = to_n(display_df[c])
+            display_df[c] = to_n(display_df[c]).map(fmtp)
 
     display_df = display_df[
         display_df["Lot Number"].astype(str).str.strip() != ""
@@ -742,126 +742,12 @@ if not df_landed.empty:
 
     display_df = display_df.reset_index(drop=True)
 
-    format_dict = {}
-    for c in money_cols:
-        if c in display_df.columns:
-            format_dict[c] = "${:,.2f}"
-    for c in pct_cols:
-        if c in display_df.columns:
-            format_dict[c] = "{:.1f}%"
-
-    def style_profit(val):
-        try:
-            if float(val) >= 0:
-                return "color: #27AE60; font-weight: bold"
-            return "color: #E74C3C; font-weight: bold"
-        except Exception:
-            return ""
-
-    def style_margin(val):
-        try:
-            v = float(val)
-            if v >= 25:
-                return "color: #27AE60; font-weight: bold"
-            if v >= 0:
-                return "color: #F39C12; font-weight: bold"
-            return "color: #E74C3C; font-weight: bold"
-        except Exception:
-            return ""
-
-    def style_roi(val):
-        try:
-            v = float(val)
-            if v >= 30:
-                return "color: #27AE60; font-weight: bold"
-            if v >= 0:
-                return "color: #F39C12; font-weight: bold"
-            return "color: #E74C3C; font-weight: bold"
-        except Exception:
-            return ""
-
-    styled = display_df.style.format(format_dict)
-
-    if "Profit" in display_df.columns:
-        styled = styled.map(style_profit, subset=["Profit"])
-
-    if "Margin%" in display_df.columns:
-        styled = styled.map(style_margin, subset=["Margin%"])
-
-    if "ROI%" in display_df.columns:
-        styled = styled.map(style_roi, subset=["ROI%"])
-
-    styled = styled.set_properties(
-        **{
-            "text-align": "right",
-            "font-family": "Arial, sans-serif",
-            "font-size": "12px",
-            "color": "#1B3A6B",
-            "padding": "8px 12px",
-            "border-bottom": "1px solid #E8ECF1"
-        }
+    st.dataframe(
+        display_df,
+        use_container_width=True,
+        hide_index=True,
+        height=400
     )
-
-    styled = styled.set_properties(
-        subset=["Lot Number", "Shipment", "Category"],
-        **{
-            "text-align": "left",
-            "font-weight": "600"
-        }
-    )
-
-    styled = styled.set_properties(
-        subset=["Qty"],
-        **{
-            "text-align": "center"
-        }
-    )
-
-    styled = styled.set_table_styles([
-        {
-            "selector": "th",
-            "props": [
-                ("background-color", "#1B3A6B"),
-                ("color", "white"),
-                ("font-size", "10px"),
-                ("font-weight", "700"),
-                ("text-transform", "uppercase"),
-                ("letter-spacing", "1px"),
-                ("padding", "10px 12px"),
-                ("border", "1px solid #2471A3"),
-                ("font-family", "Arial, sans-serif"),
-                ("text-align", "center")
-            ]
-        },
-        {
-            "selector": "tr:nth-child(even)",
-            "props": [
-                ("background-color", "#F4F7FB")
-            ]
-        },
-        {
-            "selector": "tr:nth-child(odd)",
-            "props": [
-                ("background-color", "white")
-            ]
-        },
-        {
-            "selector": "tr:hover",
-            "props": [
-                ("background-color", "#EBF5FB")
-            ]
-        },
-        {
-            "selector": "td",
-            "props": [
-                ("border-bottom", "1px solid #E8ECF1")
-            ]
-        }
-    ])
-
-    styled = styled.hide(axis="index")
-
-    st.write(styled.to_html(), unsafe_allow_html=True)
 
 else:
     st.info("No lot data available yet.")
