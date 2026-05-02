@@ -734,7 +734,7 @@ if not df_landed.empty:
         display_df["Lot"].astype(str).str.upper() != "TOTALS"
     ]
 
-    st.dataframe(display_df, use_container_width=True)
+    st.dataframe(display_df, use_container_width=True, hide_index=True)
 
 else:
     st.info("No lot data available yet.")
